@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase RBAC Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 28px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s;
+    }
+    .tab.active { background: #fff; color: #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .tab:hover:not(.active) { color: #333; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+    .btn:active { transform: translateY(0); }
+    .btn.danger { background: linear-gradient(135deg, #f56565, #c53030); }
+    .btn.danger:hover { box-shadow: 0 6px 20px rgba(245,101,101,0.4); }
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: #e0e0e0; box-shadow: none; transform: none; }
+    .profile-card {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 2px solid #e8ecff;
+    }
+    .profile-card h3 { color: #667eea; margin-bottom: 12px; font-size: 18px; }
+    .profile-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e8ecff;
+      font-size: 14px;
+    }
+    .profile-row:last-child { border-bottom: none; }
+    .profile-row .key { color: #888; font-weight: 500; }
+    .profile-row .val { color: #333; font-weight: 600; }
+    .role-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .role-badge.admin { background: #fef3c7; color: #92400e; }
+    .role-badge.user { background: #dbeafe; color: #1e40af; }
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 14px 24px;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      animation: slideIn 0.3s ease;
+      z-index: 999;
+    }
+    .toast.success { background: #48bb78; }
+    .toast.error { background: #f56565; }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .logout-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding: 10px 16px;
+      background: #f8f9ff;
+      border-radius: 10px;
+    }
+    .logout-bar .email { font-size: 13px; color: #667eea; font-weight: 500; }
+    .logout-bar .btn-sm {
+      padding: 6px 16px;
+      font-size: 12px;
+      border-radius: 6px;
+      background: #fee2e2;
+      color: #991b1b;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .logout-bar .btn-sm:hover { background: #fecaca; }
+    /* 仪表盘 Tab */
+    .dash-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .dash-tab {
+      flex: 1;
+      padding: 8px 6px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s;
+    }
+    .dash-tab.active { background: #fff; color: #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .dash-panel { display: none; }
+    .dash-panel.active { display: block; }
+    /* 头像预览 */
+    .avatar-preview {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #667eea;
+      margin: 0 auto 12px;
+      display: block;
+      background: #e8ecff;
+    }
+    .avatar-upload-row {
+      display: flex; gap: 10px; align-items: center;
+    }
+    .avatar-upload-row .btn { width: auto; padding: 10px 16px; font-size: 13px; }
+    .file-input { display: none; }
+    /* 排行榜 */
+    .leaderboard-list { max-height: 400px; overflow-y: auto; }
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    .leaderboard-item.me { background: #f0f4ff; border-radius: 8px; font-weight: 600; }
+    .rank-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px;
+      flex-shrink: 0;
+    }
+    .rank-1 { background: #ffd700; color: #7c5e00; }
+    .rank-2 { background: #c0c0c0; color: #555; }
+    .rank-3 { background: #cd7f32; color: #fff; }
+    .rank-other { background: #f0f0f0; color: #888; }
+    .lb-username { flex: 1; color: #333; }
+    .lb-points { color: #667eea; font-weight: 700; transition: all 0.3s ease; }
+    /* 实时高亮闪烁 */
+    @keyframes flashHighlight {
+      0%   { background-color: #c6f6d5; box-shadow: 0 0 12px rgba(72,187,120,0.5); }
+      100% { background-color: transparent; box-shadow: none; }
+    }
+    .leaderboard-item.flash {
+      animation: flashHighlight 1.2s ease-out;
+      border-radius: 8px;
+    }
+    .leaderboard-item.flash .lb-points {
+      color: #48bb78;
+      transform: scale(1.25);
+    }
+    /* 搜索 */
+    .search-box {
+      position: relative; margin-bottom: 16px;
+    }
+    .search-box input {
+      padding-left: 40px;
+    }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      font-size: 16px; color: #aaa;
+    }
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    .search-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #e8ecff;
+    }
+    .avatar-default {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .my-ranking-card {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      text-align: center;
+    }
+    .rank-stat .num { font-size: 28px; font-weight: 700; }
+    .rank-stat .label { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+    /* 签到卡片 */
+    .checkin-card {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+      text-align: center;
+      border: 2px solid #fcd34d;
+    }
+    .checkin-card .streak {
+      font-size: 32px; font-weight: 800; color: #92400e;
+    }
+    .checkin-card .streak-label {
+      font-size: 12px; color: #a16207; margin-bottom: 10px;
+    }
+    .btn-checkin {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      transition: all 0.2s;
+    }
+    .btn-checkin:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(245,158,11,0.5); }
+    .btn-checkin:disabled {
+      background: #d1d5db; color: #9ca3af; cursor: not-allowed;
+      transform: none; box-shadow: none;
+    }
+    .btn-reward {
+      padding: 10px 20px;
+      border: 2px solid #667eea;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      color: #667eea;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn-reward:hover { background: #667eea; color: #fff; }
+    .btn-reward:disabled { border-color: #d1d5db; color: #9ca3af; cursor: not-allowed; background: #fff; }
+    /* Toggle Switch (保活开关) */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #48bb78; }
+    input:checked + .slider:before { transform: translateX(20px); }
+    /* Admin 调整积分 */
+    .admin-adjust {
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    }
+    .admin-adjust select, .admin-adjust input {
+      padding: 8px 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .admin-adjust select { flex: 2; }
+    .admin-adjust input[type="number"] { width: 70px; text-align: center; }
+    .admin-adjust .btn-sm-admin {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+    }
+    .btn-add { background: #48bb78; }
+    .btn-sub { background: #f56565; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🔐 RBAC Demo</h1>
+  <p class="subtitle">Supabase 认证 + 基于角色的访问控制</p>
+
+  <!-- 未登录时的 Tab 切换 -->
+  <div id="auth-section">
+    <div class="tabs">
+      <button class="tab active" data-tab="login">登录</button>
+      <button class="tab" data-tab="register">注册</button>
+    </div>
+
+    <!-- 登录面板 -->
+    <div id="panel-login" class="panel active">
+      <form id="login-form">
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" id="login-email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-password" placeholder="输入密码" required>
+        </div>
+        <button type="submit" class="btn">登 录</button>
+      </form>
+    </div>
+
+    <!-- 注册面板 -->
+    <div id="panel-register" class="panel">
+      <form id="register-form">
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" id="register-email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="register-password" placeholder="至少6位密码" required minlength="6">
+        </div>
+        <button type="submit" class="btn">注 册</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 登录后的仪表盘 -->
+  <div id="dashboard-section" style="display:none;">
+    <div class="logout-bar">
+      <span class="email" id="user-email"></span>
+      <button class="btn-sm" id="btn-logout">退出</button>
+    </div>
+
+    <div class="dash-tabs">
+      <button class="dash-tab active" data-dtab="profile">👤 资料</button>
+      <button class="dash-tab" data-dtab="leaderboard">🏆 排行</button>
+      <button class="dash-tab" data-dtab="search">🔍 搜索</button>
+    </div>
+
+    <!-- 资料面板 -->
+    <div id="dpanel-profile" class="dash-panel active">
+      <div id="profile-view">
+        <div class="profile-card" id="profile-card">
+          <h3>👤 个人资料</h3>
+          <div id="profile-content">加载中...</div>
+        </div>
+        <button class="btn btn-secondary" id="btn-show-edit">✏️ 编辑资料</button>
+
+        <!-- 签到卡片 -->
+        <div class="checkin-card" id="checkin-card">
+          <div style="font-size:14px;font-weight:600;color:#92400e;">📅 每日签到</div>
+          <div class="streak" id="streak-days">🔥 0</div>
+          <div class="streak-label" id="streak-label">连续签到天数</div>
+          <button class="btn-checkin" id="btn-checkin">✅ 今日签到 (+10)</button>
+          <button class="btn-reward" id="btn-profile-reward" style="display:none;">🎁 领取资料完善奖励</button>
+        </div>
+      </div>
+
+      <div id="profile-edit" style="display:none;">
+        <form id="edit-form">
+          <!-- 头像上传 -->
+          <div class="form-group" style="text-align:center;">
+            <label>头像</label>
+            <img id="avatar-preview-img" class="avatar-preview" src="" alt="头像预览" style="display:none;">
+            <div class="avatar-upload-row" style="justify-content:center;">
+              <input type="file" id="avatar-file-input" class="file-input" accept="image/png,image/jpeg,image/gif,image/webp">
+              <button type="button" class="btn btn-secondary" id="btn-select-avatar">📁 选择图片</button>
+              <button type="button" class="btn btn-secondary" id="btn-upload-avatar" style="display:none;">⬆️ 上传</button>
+            </div>
+            <input type="url" id="edit-avatar" placeholder="或手动输入头像 URL" style="margin-top:8px;">
+          </div>
+          <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="edit-username" placeholder="输入新用户名..." maxlength="30">
+          </div>
+          <div class="form-group">
+            <label>个人简介</label>
+            <textarea id="edit-bio" placeholder="介绍一下自己..."></textarea>
+          </div>
+          <button type="submit" class="btn">💾 保存修改</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-edit">取消</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 排行榜面板 -->
+    <div id="dpanel-leaderboard" class="dash-panel">
+      <div class="my-ranking-card" id="my-ranking-card">
+        <div class="rank-stat"><div class="num" id="my-rank">-</div><div class="label">我的排名</div></div>
+        <div class="rank-stat"><div class="num" id="my-points">-</div><div class="label">我的积分</div></div>
+        <div class="rank-stat"><div class="num" id="total-users">-</div><div class="label">总用户数</div></div>
+      </div>
+      <div class="profile-card">
+        <h3>🏆 Top 100 排行榜</h3>
+        <div class="leaderboard-list" id="leaderboard-list">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 搜索面板 -->
+    <div id="dpanel-search" class="dash-panel">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="搜索用户名..." autocomplete="off">
+      </div>
+      <div id="search-results" style="font-size:13px; color:#888;">输入关键字开始搜索...</div>
+    </div>
+
+    <!-- Admin 面板 -->
+    <div id="admin-section" style="display:none; margin-top: 20px;">
+      <div class="profile-card">
+        <h3>🛡️ Admin 面板</h3>
+        <button class="btn btn-secondary" id="btn-admin-all-users">📋 查看所有用户</button>
+        <div id="all-users-list" style="margin-top: 12px; font-size: 13px;"></div>
+      </div>
+      <div class="profile-card" style="margin-top:12px;">
+        <h3>⚡ 手动调整积分</h3>
+        <div class="admin-adjust" style="margin-bottom:8px;">
+          <select id="admin-target-user">
+            <option value="">选择用户...</option>
+          </select>
+          <input type="number" id="admin-points-amount" placeholder="分值" value="10">
+          <button class="btn-sm-admin btn-add" id="btn-admin-add">+ 加</button>
+          <button class="btn-sm-admin btn-sub" id="btn-admin-sub">- 减</button>
+        </div>
+        <input type="text" id="admin-reason" placeholder="调整原因（可选）" style="width:100%;padding:8px 10px;border:2px solid #e0e0e0;border-radius:8px;font-size:13px;">
+      </div>
+      <div class="profile-card" style="margin-top:12px;">
+        <h3>⏱️ 自动保活设置</h3>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+          <span style="font-size: 13px; color: #555;">启用每日数据库保活 (防休眠)</span>
+          <label class="switch">
+            <input type="checkbox" id="admin-keep-alive-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div style="margin-top: 16px; border-top: 1px solid #e8ecff; padding-top: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: #555;">执行日志</span>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <input type="date" id="log-date-filter" style="padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; height: 24px;">
+              <button class="btn-sm-admin" id="btn-manual-keep-alive" style="background: #f59e0b; padding: 4px 8px; font-size: 11px;">手动执行</button>
+              <button class="btn-sm-admin" id="btn-refresh-logs" style="background: #667eea; padding: 4px 8px; font-size: 11px;">刷新</button>
+              <button class="btn-sm-admin" id="btn-clear-logs" style="background: #f56565; padding: 4px 8px; font-size: 11px;">清空</button>
+            </div>
+          </div>
+          <div id="keep-alive-logs-list" style="font-size: 12px; color: #666; max-height: 150px; overflow-y: auto; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            加载中...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
+</script>
+
+<script type="module">
+import { createClient } from '@supabase/supabase-js'
+
+// ==================== 初始化 ====================
+const supabase = createClient(
+  'https://aerchufarhyvjyhjrews.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlcmNodWZhcmh5dmp5aGpyZXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNTg5MDksImV4cCI6MjA4NzczNDkwOX0.k7eI3tUfJcmF_58nMQPWUPhrpwn8Nf1Yp0cpdJhnYJw'
+)
+
+// ==================== DOM 元素 ====================
+const authSection = document.getElementById('auth-section')
+const dashboardSection = document.getElementById('dashboard-section')
+const profileCard = document.getElementById('profile-card')
+const profileContent = document.getElementById('profile-content')
+const profileView = document.getElementById('profile-view')
+const profileEdit = document.getElementById('profile-edit')
+const adminSection = document.getElementById('admin-section')
+const allUsersList = document.getElementById('all-users-list')
+const userEmail = document.getElementById('user-email')
+
+let currentProfile = null
+
+// ==================== Toast 提示 ====================
+function showToast(msg, type = 'success') {
+  const toast = document.createElement('div')
+  toast.className = `toast ${type}`
+  toast.textContent = msg
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 3000)
+}
+
+// ==================== Tab 切换 ====================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    tab.classList.add('active')
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active')
+  })
+})
+
+// ==================== 渲染个人资料 ====================
+function renderProfile(profile) {
+  currentProfile = profile
+  const badge = profile.role === 'admin'
+    ? '<span class="role-badge admin">Admin</span>'
+    : '<span class="role-badge user">User</span>'
+  profileContent.innerHTML = `
+    <div class="profile-row"><span class="key">用户名</span><span class="val">${escapeHtml(profile.username)}</span></div>
+    <div class="profile-row"><span class="key">角色</span><span class="val">${badge}</span></div>
+    <div class="profile-row"><span class="key">积分</span><span class="val">${profile.points ?? 0}</span></div>
+    <div class="profile-row"><span class="key">状态</span><span class="val">${escapeHtml(profile.status)}</span></div>
+    <div class="profile-row"><span class="key">简介</span><span class="val">${escapeHtml(profile.bio || '未填写')}</span></div>
+    <div class="profile-row"><span class="key">注册时间</span><span class="val">${new Date(profile.created_at).toLocaleString()}</span></div>
+  `
+  document.getElementById('edit-avatar').value = profile.avatar_url || ''
+  document.getElementById('edit-username').value = profile.username || ''
+  document.getElementById('edit-bio').value = profile.bio || ''
+
+  // 头像预览
+  const preview = document.getElementById('avatar-preview-img')
+  if (profile.avatar_url) {
+    preview.src = profile.avatar_url
+    preview.style.display = 'block'
+  } else {
+    preview.style.display = 'none'
+  }
+
+  // Admin 面板
+  if (profile.role === 'admin') {
+    adminSection.style.display = 'block'
+    loadKeepAliveStatus()
+    loadKeepAliveLogs()
+  } else {
+    adminSection.style.display = 'none'
+  }
+
+  // 刷新奖励按钮状态
+  checkProfileReward()
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// 根据用户名生成一致的背景色
+function avatarColor(name) {
+  const colors = ['#f87171','#fb923c','#facc15','#4ade80','#22d3ee','#60a5fa','#a78bfa','#f472b6']
+  let hash = 0
+  for (const ch of (name || '?')) hash = ((hash << 5) - hash) + ch.charCodeAt(0) | 0
+  return colors[Math.abs(hash) % colors.length]
+}
+
+// ==================== 获取个人资料 ====================
+let profileRetryCount = 0
+const MAX_PROFILE_RETRY = 5
+
+async function getProfile() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
+  const { data, error } = await supabase
+    .from('user_info')
+    .select('*')
+    .eq('id', session.user.id)
+    .maybeSingle()
+
+  if (error) {
+    // PGRST116 = 0 rows，通常是触发器还未完成或 user_info 不存在
+    if (error.code === 'PGRST116' && profileRetryCount < MAX_PROFILE_RETRY) {
+      profileRetryCount++
+      console.warn(`user_info 尚未创建，重试 ${profileRetryCount}/${MAX_PROFILE_RETRY}...`)
+      setTimeout(getProfile, 1000)
+      return
+    }
+    console.error('获取个人资料失败:', error.message)
+    profileContent.textContent = '❌ 加载失败: ' + error.message
+    return
+  }
+
+  if (!data && profileRetryCount < MAX_PROFILE_RETRY) {
+    // maybeSingle 返回 null（0 行），表示触发器还未完成
+    profileRetryCount++
+    console.warn(`user_info 尚未创建，重试 ${profileRetryCount}/${MAX_PROFILE_RETRY}...`)
+    setTimeout(getProfile, 1000)
+    return
+  }
+
+  if (!data) {
+    profileContent.textContent = '⚠️ 用户资料未找到，请重新注册或联系管理员'
+    return
+  }
+
+  profileRetryCount = 0
+  renderProfile(data)
+}
+
+// ==================== 显示仪表盘 ====================
+async function showDashboard() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
+  userEmail.textContent = session.user.email
+  authSection.style.display = 'none'
+  dashboardSection.style.display = 'block'
+  subscribeRealtime()
+  await getProfile()
+  await loadCheckinStatus()
+  await loadAdminUserList()
+}
+
+// ==================== 注册 ====================
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const email = document.getElementById('register-email').value
+  const password = document.getElementById('register-password').value
+
+  const { data, error } = await supabase.auth.signUp({ email, password })
+  if (error) return showToast(error.message, 'error')
+
+  showToast('注册成功！请查收验证邮件 📧（开发模式可直接登录）')
+  // 如果关闭了邮箱验证，注册后自动登录
+  if (data.session) {
+    await showDashboard()
+  }
+  document.getElementById('register-form').reset()
+})
+
+// ==================== 登录 ====================
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const email = document.getElementById('login-email').value
+  const password = document.getElementById('login-password').value
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) return showToast(error.message, 'error')
+
+  showToast('登录成功！👋')
+  await showDashboard()
+  document.getElementById('login-form').reset()
+})
+
+// ==================== 退出 ====================
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  unsubscribeRealtime()
+  leaderboardData = []
+  await supabase.auth.signOut()
+  authSection.style.display = 'block'
+  dashboardSection.style.display = 'none'
+  adminSection.style.display = 'none'
+  showToast('已退出登录')
+})
+
+// ==================== 编辑资料 ====================
+document.getElementById('btn-show-edit').addEventListener('click', () => {
+  profileView.style.display = 'none'
+  profileEdit.style.display = 'block'
+})
+
+document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+  profileEdit.style.display = 'none'
+  profileView.style.display = 'block'
+})
+
+document.getElementById('edit-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return showToast('请先登录', 'error')
+
+  const usernameVal = document.getElementById('edit-username').value.trim()
+  const updates = {
+    username: usernameVal || undefined,
+    avatar_url: document.getElementById('edit-avatar').value || null,
+    bio: document.getElementById('edit-bio').value || null,
+  }
+
+  const { data, error } = await supabase
+    .from('user_info')
+    .update(updates)
+    .eq('id', user.id)
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '23505') return showToast('❌ 该用户名已被占用，请换一个', 'error')
+    return showToast(error.message, 'error')
+  }
+
+  showToast('资料已更新 ✅')
+  if (data) {
+    renderProfile(data)
+  } else {
+    await getProfile()
+  }
+  profileEdit.style.display = 'none'
+  profileView.style.display = 'block'
+})
+
+// ==================== Admin：查看所有用户 ====================
+document.getElementById('btn-admin-all-users').addEventListener('click', async () => {
+  const { data, error } = await supabase
+    .from('user_info')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) return showToast('获取失败：' + error.message, 'error')
+
+  allUsersList.innerHTML = data.map(u => `
+    <div class="profile-row">
+      <span>${escapeHtml(u.username)} ${u.role === 'admin' ? '👑' : '👤'}</span>
+      <span style="color:#888;">${escapeHtml(u.status)} · ${u.points ?? 0}分 · ${new Date(u.created_at).toLocaleDateString()}</span>
+    </div>
+  `).join('')
+  showToast(`共 ${data.length} 个用户`)
+})
+
+// ==================== 签到系统 ====================
+async function loadCheckinStatus() {
+  const { data, error } = await supabase.rpc('get_today_checkin_status')
+  if (error) return
+
+  const status = data
+  const btn = document.getElementById('btn-checkin')
+  const streakEl = document.getElementById('streak-days')
+
+  streakEl.textContent = '🔥 ' + (status.current_streak || 0)
+
+  if (status.checked_in_today) {
+    btn.textContent = '✅ 今日已签到'
+    btn.disabled = true
+    document.getElementById('streak-label').textContent = '连续签到 ' + (status.current_streak || 0) + ' 天，明天继续加油！'
+  } else {
+    btn.textContent = '✅ 今日签到 (+10)'
+    btn.disabled = false
+    document.getElementById('streak-label').textContent = '连续签到 ' + (status.current_streak || 0) + ' 天'
+  }
+
+  // 检查资料完善奖励
+  checkProfileReward()
+}
+
+function checkProfileReward() {
+  if (!currentProfile) return
+  const rewardBtn = document.getElementById('btn-profile-reward')
+  // 有头像或简介就显示领取按钮
+  if (currentProfile.avatar_url || currentProfile.bio) {
+    rewardBtn.style.display = 'inline-block'
+  }
+}
+
+document.getElementById('btn-checkin').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-checkin')
+  btn.disabled = true
+  btn.textContent = '签到中...'
+
+  const { data, error } = await supabase.rpc('daily_checkin')
+  if (error) return showToast(error.message, 'error'), btn.disabled = false, btn.textContent = '✅ 今日签到 (+10)'
+
+  if (data.success) {
+    showToast(data.message || '签到成功！')
+    await loadCheckinStatus()
+    await getProfile() // 刷新积分显示
+  } else {
+    showToast(data.message || '签到失败', 'error')
+    await loadCheckinStatus()
+  }
+})
+
+// ==================== 资料完善奖励 ====================
+document.getElementById('btn-profile-reward').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-profile-reward')
+  btn.disabled = true
+  btn.textContent = '领取中...'
+
+  const { data, error } = await supabase.rpc('award_profile_completion')
+  if (error) return showToast(error.message, 'error'), btn.disabled = false
+
+  if (data.success) {
+    showToast(data.message || '奖励已领取！')
+    btn.style.display = 'none'
+    await getProfile() // 刷新积分
+  } else {
+    showToast(data.message || '暂无可领取奖励', 'error')
+    btn.style.display = 'none'
+  }
+})
+
+// ==================== Admin 积分调整 ====================
+async function loadAdminUserList() {
+  // 仅 admin 加载
+  if (!currentProfile || currentProfile.role !== 'admin') return
+
+  const { data } = await supabase
+    .from('user_info')
+    .select('id, username, points')
+    .order('points', { ascending: false })
+
+  const select = document.getElementById('admin-target-user')
+  select.innerHTML = '<option value="">选择用户...</option>' +
+    (data || []).map(u => `<option value="${u.id}">${escapeHtml(u.username)} (${u.points ?? 0}分)</option>`).join('')
+}
+
+async function adminAdjustPoints(amount) {
+  const targetId = document.getElementById('admin-target-user').value
+  if (!targetId) return showToast('请选择目标用户', 'error')
+
+  const reason = document.getElementById('admin-reason').value || null
+  const btnAdd = document.getElementById('btn-admin-add')
+  const btnSub = document.getElementById('btn-admin-sub')
+  btnAdd.disabled = true
+  btnSub.disabled = true
+
+  const { data, error } = await supabase.rpc('admin_adjust_points', {
+    target_user_id: targetId,
+    amount: amount,
+    reason: reason
+  })
+
+  btnAdd.disabled = false
+  btnSub.disabled = false
+
+  if (error) return showToast(error.message, 'error')
+
+  if (data.success) {
+    showToast(data.message || '调整成功！')
+    document.getElementById('admin-reason').value = ''
+    await loadAdminUserList()
+  } else {
+    showToast(data.message || '调整失败', 'error')
+  }
+}
+
+document.getElementById('btn-admin-add').addEventListener('click', async () => {
+  const val = parseInt(document.getElementById('admin-points-amount').value) || 10
+  await adminAdjustPoints(Math.abs(val))
+})
+
+document.getElementById('btn-admin-sub').addEventListener('click', async () => {
+  const val = parseInt(document.getElementById('admin-points-amount').value) || 10
+  await adminAdjustPoints(-Math.abs(val))
+})
+
+// ==================== Admin 保活开关 ====================
+async function loadKeepAliveStatus() {
+  const { data, error } = await supabase.rpc('get_keep_alive_status')
+  if (error) {
+    console.error('获取保活状态失败:', error.message)
+    return
+  }
+  const toggle = document.getElementById('admin-keep-alive-toggle')
+  toggle.checked = data === true
+}
+
+document.getElementById('admin-keep-alive-toggle').addEventListener('change', async (e) => {
+  const isEnabled = e.target.checked
+  const { error } = await supabase.rpc('set_keep_alive_status', { enabled: isEnabled })
+  
+  if (error) {
+    showToast('设置失败: ' + error.message, 'error')
+    e.target.checked = !isEnabled // 恢复原状
+  } else {
+    showToast(isEnabled ? '自动保活已开启 🟢' : '自动保活已关闭 🔴')
+  }
+})
+
+async function loadKeepAliveLogs() {
+  const listEl = document.getElementById('keep-alive-logs-list')
+  listEl.innerHTML = '加载中...'
+  
+  const filterDate = document.getElementById('log-date-filter').value || null
+  
+  const { data, error } = await supabase.rpc('get_keep_alive_logs', { 
+    limit_count: 50, // 增加限制以便按日期查看更多
+    filter_date: filterDate 
+  })
+  
+  if (error) {
+    listEl.innerHTML = `<div style="color: #f56565;">获取日志失败: ${escapeHtml(error.message)}</div>`
+    return
+  }
+  
+  if (!data || data.length === 0) {
+    listEl.innerHTML = '<div style="text-align: center; color: #aaa; padding: 10px 0;">暂无执行日志</div>'
+    return
+  }
+  
+  listEl.innerHTML = data.map(log => {
+    const time = new Date(log.executed_at).toLocaleString()
+    const color = log.status === 'success' ? '#48bb78' : '#a0aec0'
+    const icon = log.status === 'success' ? '✅' : '⏭️'
+    return `
+      <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #eee;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span style="color: ${color}; font-weight: 600;">${icon} ${escapeHtml(log.status)}</span>
+          <span style="color: #999; font-size: 11px;">${time}</span>
+        </div>
+        <div style="color: #555;">${escapeHtml(log.message)}</div>
+      </div>
+    `
+  }).join('')
+}
+
+document.getElementById('btn-refresh-logs').addEventListener('click', loadKeepAliveLogs)
+document.getElementById('log-date-filter').addEventListener('change', loadKeepAliveLogs)
+
+document.getElementById('btn-clear-logs').addEventListener('click', async () => {
+  if (!confirm('确定要清空所有保活日志吗？')) return
+  
+  const btn = document.getElementById('btn-clear-logs')
+  btn.disabled = true
+  
+  const { error } = await supabase.rpc('clear_keep_alive_logs')
+  
+  btn.disabled = false
+  if (error) {
+    showToast('清空失败: ' + error.message, 'error')
+  } else {
+    showToast('日志已清空 🗑️')
+    await loadKeepAliveLogs()
+  }
+})
+
+document.getElementById('btn-manual-keep-alive').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-manual-keep-alive')
+  btn.disabled = true
+  btn.textContent = '执行中...'
+  
+  const { error } = await supabase.rpc('manual_keep_alive')
+  
+  btn.disabled = false
+  btn.textContent = '手动执行'
+  
+  if (error) {
+    showToast('手动执行失败: ' + error.message, 'error')
+  } else {
+    showToast('手动执行完成！')
+    await loadKeepAliveLogs() // 执行完自动刷新日志
+  }
+})
+
+// ==================== 仪表盘 Tab 切换 ====================
+document.querySelectorAll('.dash-tab').forEach(tab => {
+  tab.addEventListener('click', async () => {
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'))
+    tab.classList.add('active')
+    document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'))
+    document.getElementById('dpanel-' + tab.dataset.dtab).classList.add('active')
+
+    // 切换到排行榜时：有缓存就渲染，否则加载
+    if (tab.dataset.dtab === 'leaderboard') {
+      if (leaderboardData.length > 0) {
+        renderLeaderboard()
+      } else {
+        await loadLeaderboard()
+      }
+    }
+  })
+})
+
+// ==================== 头像上传 ====================
+let selectedAvatarFile = null
+
+document.getElementById('btn-select-avatar').addEventListener('click', () => {
+  document.getElementById('avatar-file-input').click()
+})
+
+document.getElementById('avatar-file-input').addEventListener('change', (e) => {
+  selectedAvatarFile = e.target.files[0]
+  if (selectedAvatarFile) {
+    const url = URL.createObjectURL(selectedAvatarFile)
+    const preview = document.getElementById('avatar-preview-img')
+    preview.src = url
+    preview.style.display = 'block'
+    document.getElementById('btn-upload-avatar').style.display = 'inline-block'
+    document.getElementById('btn-upload-avatar').textContent = '⬆️ 上传 ' + selectedAvatarFile.name
+  }
+})
+
+document.getElementById('btn-upload-avatar').addEventListener('click', async () => {
+  if (!selectedAvatarFile) return showToast('请先选择图片', 'error')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return showToast('请先登录', 'error')
+
+  const fileExt = selectedAvatarFile.name.split('.').pop()
+  const filePath = `${user.id}/${Date.now()}.${fileExt}`
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, selectedAvatarFile, { upsert: true })
+
+  if (error) return showToast('上传失败: ' + error.message, 'error')
+
+  // 获取公开 URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath)
+
+  document.getElementById('edit-avatar').value = publicUrl
+  document.getElementById('avatar-preview-img').src = publicUrl
+  document.getElementById('btn-upload-avatar').style.display = 'none'
+  selectedAvatarFile = null
+  showToast('头像上传成功！记得点保存 💾')
+})
+
+// ==================== 排行榜 ====================
+let leaderboardData = []           // 本地排行榜数据缓存
+let realtimeChannel = null         // Realtime 频道引用
+let highlightedIds = new Set()     // 需要高亮的用户 ID 集合
+
+// 渲染排行榜（纯渲染函数，从 leaderboardData 数组读取）
+async function renderLeaderboard() {
+  const listEl = document.getElementById('leaderboard-list')
+  const { data: { user } } = await supabase.auth.getUser()
+  const myId = user?.id
+
+  listEl.innerHTML = leaderboardData.map((u, i) => {
+    const rank = i + 1
+    const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other'
+    const isMe = u.id === myId ? ' me' : ''
+    const flashClass = highlightedIds.has(u.id) ? ' flash' : ''
+    const avatarHtml = u.avatar_url
+      ? `<img class="search-avatar" src="${escapeHtml(u.avatar_url)}" alt="">`
+      : `<span class="avatar-default" style="background:${avatarColor(u.username)}">${(u.username || '?')[0].toUpperCase()}</span>`
+    return `
+      <div class="leaderboard-item${isMe}${flashClass}" data-uid="${u.id}">
+        <span class="rank-num ${rankClass}">${rank}</span>
+        ${avatarHtml}
+        <span class="lb-username">${escapeHtml(u.username)}</span>
+        <span class="lb-points">${u.points ?? 0} 分</span>
+      </div>
+    `
+  }).join('')
+
+  // 动画结束后清除高亮
+  listEl.querySelectorAll('.leaderboard-item.flash').forEach(el => {
+    el.addEventListener('animationend', () => {
+      el.classList.remove('flash')
+      const pts = el.querySelector('.lb-points')
+      if (pts) pts.style.color = ''
+      pts.style.transform = ''
+    }, { once: true })
+  })
+
+  // 更新我的排名卡片
+  if (myId) {
+    const myIdx = leaderboardData.findIndex(u => u.id === myId)
+    document.getElementById('my-rank').textContent = myIdx >= 0 ? '#' + (myIdx + 1) : '-'
+  }
+
+  highlightedIds.clear()
+}
+
+// 初始加载排行榜数据（使用 SECURITY DEFINER RPC，仅返回公开字段）
+async function loadLeaderboard() {
+  const [rankingRes, boardRes] = await Promise.all([
+    supabase.rpc('get_my_ranking'),
+    supabase.rpc('get_leaderboard')
+  ])
+
+  // 我的排名统计
+  if (!rankingRes.error && rankingRes.data && rankingRes.data.length > 0) {
+    const r = rankingRes.data[0]
+    document.getElementById('my-rank').textContent = '#' + r.rank
+    document.getElementById('my-points').textContent = r.points
+    document.getElementById('total-users').textContent = r.total_users
+  }
+
+  if (boardRes.error) {
+    document.getElementById('leaderboard-list').textContent = '加载失败: ' + boardRes.error.message
+    return
+  }
+
+  leaderboardData = boardRes.data
+  await renderLeaderboard()
+}
+
+// ==================== Realtime 实时监听 ====================
+function subscribeRealtime() {
+  if (realtimeChannel) return // 避免重复订阅
+
+  // 由于 user_info 的 SELECT RLS 已收紧为"只能看自己"，
+  // postgres_changes 对普通用户只会推送自己的行变化。
+  // 这里仅订阅自己的数据变化用于个人资料实时更新。
+  realtimeChannel = supabase
+    .channel('user_info_realtime')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'user_info' },
+      (payload) => {
+        // 只处理自己的更新（刷新个人资料）
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user && payload.new.id === user.id) {
+            getProfile()
+            loadCheckinStatus()
+          }
+        })
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime] user_info 频道状态:', status)
+      if (status === 'SUBSCRIBED') {
+        console.log('📡 个人资料实时更新已连接')
+      }
+    })
+
+  // 排行榜通过定时轮询 RPC 函数实现"伪实时"更新
+  startLeaderboardPolling()
+}
+
+let leaderboardPollTimer = null
+
+function startLeaderboardPolling() {
+  if (leaderboardPollTimer) return
+  leaderboardPollTimer = setInterval(async () => {
+    const lbPanel = document.getElementById('dpanel-leaderboard')
+    // 只在排行榜面板可见时拉取
+    if (!lbPanel || !lbPanel.classList.contains('active')) return
+
+    const { data, error } = await supabase.rpc('get_leaderboard')
+    if (error || !data) return
+
+    // 检测变化，标记需要高亮的用户
+    const oldMap = new Map(leaderboardData.map(u => [u.id, u.points]))
+    for (const row of data) {
+      const oldPts = oldMap.get(row.id)
+      if (oldPts !== undefined && oldPts !== row.points) {
+        highlightedIds.add(row.id)
+      }
+    }
+
+    leaderboardData = data
+    renderLeaderboard()
+  }, 5000) // 每 5 秒拉取一次
+}
+
+// 取消实时订阅和轮询
+function unsubscribeRealtime() {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+  if (leaderboardPollTimer) {
+    clearInterval(leaderboardPollTimer)
+    leaderboardPollTimer = null
+  }
+}
+
+// ==================== 模糊搜索用户 ====================
+let searchTimer = null
+document.getElementById('search-input').addEventListener('input', (e) => {
+  clearTimeout(searchTimer)
+  const keyword = e.target.value.trim()
+  if (!keyword) {
+    document.getElementById('search-results').textContent = '输入关键字开始搜索...'
+    return
+  }
+  searchTimer = setTimeout(() => searchUsers(keyword), 300)
+})
+
+async function searchUsers(keyword) {
+  document.getElementById('search-results').textContent = '搜索中...'
+  // 使用 SECURITY DEFINER RPC 函数，仅返回公开字段
+  const { data, error } = await supabase
+    .rpc('search_users', { keyword })
+
+  if (error) {
+    document.getElementById('search-results').textContent = '搜索失败: ' + error.message
+    return
+  }
+
+  if (!data || data.length === 0) {
+    document.getElementById('search-results').textContent = '未找到匹配用户'
+    return
+  }
+
+  document.getElementById('search-results').innerHTML = data.map(u => `
+    <div class="search-result-item">
+      <img class="search-avatar" src="${escapeHtml(u.avatar_url || '')}" alt="" onerror="this.style.display='none'">
+      <span style="flex:1;font-weight:600;">${escapeHtml(u.username)}</span>
+      <span style="color:#667eea;font-weight:700;margin-right:8px;">${u.points ?? 0}分</span>
+      <span style="font-size:12px;color:#888;">${escapeHtml(u.status)}</span>
+    </div>
+  `).join('')
+}
+
+// ==================== 初始化：检查登录状态 ====================
+const { data: { session } } = await supabase.auth.getSession()
+if (session) {
+  await showDashboard()
+}
+
+// 监听登录状态变化
+const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    profileRetryCount = 0
+    showDashboard()
+  }
+  if (event === 'SIGNED_OUT') {
+    unsubscribeRealtime()
+    leaderboardData = []
+  }
+})
+</script>
+
+</body>
+</html>
