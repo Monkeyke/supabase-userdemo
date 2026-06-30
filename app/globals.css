@@ -2,38 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== 基础层 ===== */
 body {
   @apply bg-dark-950 text-dark-100;
 }
 
-/* 语法高亮主题 (暗色) */
-pre code {
-  @apply text-sm;
+/* ===== 网格背景纹理 ===== */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(30, 41, 59, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center center;
 }
 
+.bg-grid-dot {
+  background-image: radial-gradient(circle, rgba(71, 85, 105, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ===== 辉光动画 ===== */
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.3)) drop-shadow(0 0 16px rgba(96, 165, 250, 0.15)); }
+  50%      { filter: drop-shadow(0 0 14px rgba(96, 165, 250, 0.5)) drop-shadow(0 0 24px rgba(168, 85, 247, 0.25)); }
+}
+.animate-glow { animation: glow 3s ease-in-out infinite; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scaleIn 0.2s ease-out; }
+
+/* Toast 通知 */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes slideOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-12px) scale(0.97); }
+}
+.animate-toast-in  { animation: slideUp 0.25s ease-out both; }
+.animate-toast-out { animation: slideOut 0.2s ease-in both; }
+
+/* ===== 命令面板遮罩 ===== */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-overlay-in { animation: overlayIn 0.15s ease-out; }
+
+/* ===== 卡片 Hover 微动效 ===== */
+.card-hover {
+  @apply transition-all duration-200 ease-out;
+}
+.card-hover:hover {
+  @apply -translate-y-0.5 shadow-lg shadow-black/20;
+}
+
+/* ===== Highlight.js 暗色主题覆写 (atom-one-dark 基底) ===== */
 pre {
-  @apply rounded-lg p-4 overflow-x-auto bg-dark-800 border border-dark-700;
+  @apply rounded-xl p-5 overflow-x-auto border text-sm leading-relaxed;
+  background: #0d1117 !important;
+  border-color: #21262d !important;
+}
+pre code {
+  @apply bg-transparent text-sm p-0;
+  color: #c9d1d9 !important;
 }
 
-/* Markdown 内容样式 */
-.markdown-body h1 { @apply text-2xl font-bold mt-6 mb-3 text-white; }
-.markdown-body h2 { @apply text-xl font-bold mt-5 mb-2 text-dark-100; }
-.markdown-body h3 { @apply text-lg font-semibold mt-4 mb-2 text-dark-200; }
-.markdown-body p { @apply my-2 leading-relaxed; }
-.markdown-body ul { @apply list-disc pl-6 my-2; }
-.markdown-body ol { @apply list-decimal pl-6 my-2; }
-.markdown-body li { @apply my-1; }
-.markdown-body a { @apply text-blue-400 hover:text-blue-300 underline; }
-.markdown-body blockquote { @apply border-l-4 border-dark-600 pl-4 my-3 italic text-dark-400; }
-.markdown-body code { @apply bg-dark-800 text-pink-300 px-1.5 py-0.5 rounded text-sm; }
-.markdown-body pre code { @apply bg-transparent text-dark-100 p-0; }
-.markdown-body table { @apply w-full border-collapse my-3; }
-.markdown-body th { @apply border border-dark-600 px-3 py-2 bg-dark-800 text-left text-sm; }
-.markdown-body td { @apply border border-dark-600 px-3 py-2 text-sm; }
-.markdown-body img { @apply max-w-full rounded-lg my-2; }
-.markdown-body hr { @apply border-dark-700 my-4; }
+/* highlight.js 关键词色 */
+.hljs-keyword    { color: #ff7b72 !important; }
+.hljs-string     { color: #a5d6ff !important; }
+.hljs-comment    { color: #8b949e !important; font-style: italic; }
+.hljs-function   { color: #d2a8ff !important; }
+.hljs-title      { color: #d2a8ff !important; }
+.hljs-params     { color: #ffa657 !important; }
+.hljs-number     { color: #79c0ff !important; }
+.hljs-built_in   { color: #ffa657 !important; }
+.hljs-meta       { color: #8b949e !important; }
+.hljs-attr       { color: #79c0ff !important; }
+.hljs-attribute  { color: #79c0ff !important; }
+.hljs-literal    { color: #79c0ff !important; }
+.hljs-type       { color: #ffa657 !important; }
+.hljs-variable   { color: #ffa657 !important; }
+.hljs-selector-class { color: #d2a8ff !important; }
+.hljs-selector-tag   { color: #ff7b72 !important; }
+.hljs-name       { color: #ff7b72 !important; }
+.hljs-tag         { color: #ff7b72 !important; }
+.hljs-regexp      { color: #a5d6ff !important; }
+.hljs-symbol      { color: #ffa657 !important; }
+.hljs-punctuation { color: #c9d1d9 !important; }
+.hljs-operator    { color: #ff7b72 !important; }
+.hljs-property    { color: #79c0ff !important; }
 
-/* Toast 动画 */
+/* ===== Markdown 内容样式 ===== */
+.markdown-body { @apply text-dark-100 leading-relaxed; }
+.markdown-body h1 { @apply text-2xl font-bold mt-8 mb-4 text-white pb-2 border-b border-dark-700; }
+.markdown-body h2 { @apply text-xl font-bold mt-6 mb-3 text-dark-100; }
+.markdown-body h3 { @apply text-lg font-semibold mt-5 mb-2 text-dark-200; }
+.markdown-body p  { @apply my-3; }
+.markdown-body ul { @apply list-disc pl-6 my-3 space-y-1; }
+.markdown-body ol { @apply list-decimal pl-6 my-3 space-y-1; }
+.markdown-body li { @apply my-0.5; }
+.markdown-body a  { @apply text-blue-400 hover:text-blue-300 underline decoration-blue-500/30 hover:decoration-blue-400 transition-colors; }
+.markdown-body blockquote {
+  @apply border-l-4 border-blue-500/40 pl-5 my-4 italic text-dark-400 bg-dark-800/50 py-2 rounded-r-lg;
+}
+.markdown-body code {
+  @apply bg-dark-800 text-pink-300 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+.markdown-body pre code { @apply bg-transparent text-dark-100 p-0; }
+.markdown-body table { @apply w-full border-collapse my-4; }
+.markdown-body th { @apply border border-dark-600 px-4 py-2.5 bg-dark-800 text-left text-sm font-semibold text-dark-200; }
+.markdown-body td { @apply border border-dark-600 px-4 py-2.5 text-sm; }
+.markdown-body img { @apply max-w-full rounded-xl my-3; }
+.markdown-body hr  { @apply border-dark-700 my-6; }
+.markdown-body strong { @apply text-dark-100 font-semibold; }
+
+/* ===== 滚动条暗色美化 ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-dark-600 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-dark-500; }
+
+/* ===== Toast 动画 (兼容旧版) ===== */
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
