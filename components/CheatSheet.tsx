@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getSeedCommandsByTag } from '@/lib/seed-commands'
 
 interface CheatNote {
   id: string
@@ -37,22 +38,47 @@ export default function CheatSheet() {
   const [activeTag, setActiveTag] = useState<string>('ssh')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [seedingTag, setSeedingTag] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadNotes = useCallback(async () => {
     const supabase = createClient()
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
-      const { data } = await supabase
-        .from('notes')
-        .select('id, title, content, tags')
-        .eq('user_id', user.id)
-        .order('title', { ascending: true })
-      setNotes((data || []) as CheatNote[])
-      setLoading(false)
-    }
-    load()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+    const { data } = await supabase
+      .from('notes')
+      .select('id, title, content, tags')
+      .eq('user_id', user.id)
+      .order('title', { ascending: true })
+    setNotes((data || []) as CheatNote[])
+    setLoading(false)
   }, [])
+
+  useEffect(() => { loadNotes() }, [loadNotes])
+
+  async function handleSeedTag(tag: string) {
+    setSeedingTag(tag)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSeedingTag(null); return }
+
+    const cmds = getSeedCommandsByTag(tag)
+    const rows = cmds.map((cmd) => ({
+      user_id: user.id,
+      title: cmd.title,
+      content: cmd.content,
+      tags: cmd.tags,
+      is_public: false,
+    }))
+
+    const { error } = await supabase.from('notes').insert(rows)
+    if (error) {
+      alert('初始化失败: ' + error.message)
+      setSeedingTag(null)
+      return
+    }
+    await loadNotes()
+    setSeedingTag(null)
+  }
 
   const filtered = notes.filter((n) => n.tags?.includes(activeTag))
 
@@ -115,9 +141,16 @@ export default function CheatSheet() {
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-4xl mb-3">📭</p>
-          <p className="text-dark-400">
-            该标签下还没有命令，请先在「我的笔记」中创建或初始化命令库
+          <p className="text-dark-400 mb-4">
+            该标签下还没有命令
           </p>
+          <button
+            onClick={() => handleSeedTag(activeTag)}
+            disabled={seedingTag === activeTag}
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold text-sm transition-all shadow-lg shadow-blue-500/20"
+          >
+            {seedingTag === activeTag ? '⏳ 初始化中...' : `📦 导入「${activeTag}」命令 (${getSeedCommandsByTag(activeTag).length} 条)`}
+          </button>
         </div>
       ) : (
         <div className="bg-dark-800/50 border border-dark-700 rounded-2xl overflow-hidden">

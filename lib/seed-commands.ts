@@ -107,3 +107,8 @@ export function getSeedCountByTag(): Record<string, number> {
 
 /** 获取所有种子命令的标签 */
 export const SEED_TAGS = ['ssh', 'docker', 'linux', 'git', 'vim', 'python', '其他'] as const
+
+/** 按标签获取种子命令 */
+export function getSeedCommandsByTag(tag: string): SeedCommand[] {
+  return SEED_COMMANDS.filter((cmd) => cmd.tags.includes(tag))
+}
