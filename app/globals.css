@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-dark-950 text-dark-100;
+}
+
+/* 语法高亮主题 (暗色) */
+pre code {
+  @apply text-sm;
+}
+
+pre {
+  @apply rounded-lg p-4 overflow-x-auto bg-dark-800 border border-dark-700;
+}
+
+/* Markdown 内容样式 */
+.markdown-body h1 { @apply text-2xl font-bold mt-6 mb-3 text-white; }
+.markdown-body h2 { @apply text-xl font-bold mt-5 mb-2 text-dark-100; }
+.markdown-body h3 { @apply text-lg font-semibold mt-4 mb-2 text-dark-200; }
+.markdown-body p { @apply my-2 leading-relaxed; }
+.markdown-body ul { @apply list-disc pl-6 my-2; }
+.markdown-body ol { @apply list-decimal pl-6 my-2; }
+.markdown-body li { @apply my-1; }
+.markdown-body a { @apply text-blue-400 hover:text-blue-300 underline; }
+.markdown-body blockquote { @apply border-l-4 border-dark-600 pl-4 my-3 italic text-dark-400; }
+.markdown-body code { @apply bg-dark-800 text-pink-300 px-1.5 py-0.5 rounded text-sm; }
+.markdown-body pre code { @apply bg-transparent text-dark-100 p-0; }
+.markdown-body table { @apply w-full border-collapse my-3; }
+.markdown-body th { @apply border border-dark-600 px-3 py-2 bg-dark-800 text-left text-sm; }
+.markdown-body td { @apply border border-dark-600 px-3 py-2 text-sm; }
+.markdown-body img { @apply max-w-full rounded-lg my-2; }
+.markdown-body hr { @apply border-dark-700 my-4; }
+
+/* Toast 动画 */
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in { animation: slideIn 0.3s ease; }

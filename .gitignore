@@ -8,5 +8,17 @@
 
 # 系统文件
 .DS_Store
+
+# 构建产物
+.next/
+out/
+
+# 依赖
+node_modules/
+
+# Vercel
+.vercel
 Thumbs.db
 desktop.ini
+.vercel
+.env*
