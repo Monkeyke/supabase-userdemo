@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { getSeedCommandsByTag } from '@/lib/seed-commands'
+import { getSeedCommandsByTag, getSeedCountByTag } from '@/lib/seed-commands'
 
 interface Note {
   id: string
@@ -111,7 +111,21 @@ function NotesContent() {
     if (!user) { setSeedingTag(null); return }
 
     const cmds = getSeedCommandsByTag(tag)
-    const rows = cmds.map((cmd) => ({
+    // 查询已有标题，避免重复
+    const { data: existing } = await supabase
+      .from('notes')
+      .select('title')
+      .eq('user_id', user.id)
+      .contains('tags', [tag])
+    const existingTitles = new Set((existing || []).map((n: any) => n.title))
+    const newCmds = cmds.filter((cmd) => !existingTitles.has(cmd.title))
+    if (newCmds.length === 0) {
+      alert(`「${tag}」标签的命令已全部导入，无需补充`)
+      setSeedingTag(null)
+      return
+    }
+
+    const rows = newCmds.map((cmd) => ({
       user_id: user.id,
       title: cmd.title,
       content: cmd.content,
@@ -219,7 +233,49 @@ function NotesContent() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <>
+          {/* 补充命令入口：显示各标签缺失的种子命令 */}
+          {(() => {
+            // 计算每个标签缺失多少种子命令
+            const seedCounts = getSeedCountByTag()
+            const userTagCounts: Record<string, number> = {}
+            notes.forEach((n: Note) => {
+              n.tags?.forEach((t: string) => {
+                userTagCounts[t] = (userTagCounts[t] || 0) + 1
+              })
+            })
+            const missingTags = Object.entries(seedCounts)
+              .filter(([tag, seedCount]) => seedCount > (userTagCounts[tag] || 0))
+              .map(([tag, seedCount]) => ({ tag, missing: seedCount - (userTagCounts[tag] || 0) }))
+            if (missingTags.length === 0) return null
+
+            return (
+              <div className="mb-4 p-3 rounded-xl bg-dark-800/60 border border-dark-700">
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-dark-400 hover:text-dark-300 transition-colors select-none">
+                    📦 补充命令（共 {missingTags.reduce((s, t) => s + t.missing, 0)} 条可导入）
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {missingTags.map(({ tag, missing }) => (
+                      <button
+                        key={tag}
+                        onClick={() => handleSeedTag(tag)}
+                        disabled={seedingTag === tag}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
+                          seedingTag === tag
+                            ? 'opacity-60 border-dark-600 bg-dark-700 text-dark-400'
+                            : 'border-dark-600 hover:border-dark-400 bg-dark-700 hover:bg-dark-600 text-dark-300'
+                        }`}
+                      >
+                        {seedingTag === tag ? '⏳' : `📦`} {tag} +{missing} 条
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            )
+          })()}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {sortedNotes.map((note, idx) => {
             const isPinned = pinned.includes(note.id)
             const shortCmd = isShortContent(note.content)
@@ -323,6 +379,7 @@ function NotesContent() {
             )
           })}
         </div>
+      </>
       )}
     </div>
   )

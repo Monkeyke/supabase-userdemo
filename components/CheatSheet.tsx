@@ -62,7 +62,21 @@ export default function CheatSheet() {
     if (!user) { setSeedingTag(null); return }
 
     const cmds = getSeedCommandsByTag(tag)
-    const rows = cmds.map((cmd) => ({
+    // 查询已有标题，避免重复
+    const { data: existing } = await supabase
+      .from('notes')
+      .select('title')
+      .eq('user_id', user.id)
+      .contains('tags', [tag])
+    const existingTitles = new Set((existing || []).map((n: any) => n.title))
+    const newCmds = cmds.filter((cmd) => !existingTitles.has(cmd.title))
+    if (newCmds.length === 0) {
+      alert(`「${tag}」标签的命令已全部导入，无需补充`)
+      setSeedingTag(null)
+      return
+    }
+
+    const rows = newCmds.map((cmd) => ({
       user_id: user.id,
       title: cmd.title,
       content: cmd.content,
@@ -149,10 +163,32 @@ export default function CheatSheet() {
             disabled={seedingTag === activeTag}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold text-sm transition-all shadow-lg shadow-blue-500/20"
           >
-            {seedingTag === activeTag ? '⏳ 初始化中...' : `📦 导入「${activeTag}」命令 (${getSeedCommandsByTag(activeTag).length} 条)`}
+            {seedingTag === activeTag ? '⏳ 导入中...' : `📦 导入「${activeTag}」命令 (${getSeedCommandsByTag(activeTag).length} 条)`}
           </button>
         </div>
       ) : (
+        <>
+          {/* 补充按钮：种子命令数 > 已有数时显示 */}
+          {(() => {
+            const seedCount = getSeedCommandsByTag(activeTag).length
+            if (seedCount > filtered.length) {
+              return (
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-xs text-dark-500">
+                    已导入 {filtered.length}/{seedCount} 条，还剩 {seedCount - filtered.length} 条可补充
+                  </span>
+                  <button
+                    onClick={() => handleSeedTag(activeTag)}
+                    disabled={seedingTag === activeTag}
+                    className="px-3 py-1.5 rounded-lg bg-dark-700 hover:bg-dark-600 disabled:opacity-60 text-dark-200 text-xs font-medium transition-all border border-dark-600 hover:border-dark-500"
+                  >
+                    {seedingTag === activeTag ? '⏳' : `📦 补充 ${seedCount - filtered.length} 条`}
+                  </button>
+                </div>
+              )
+            }
+            return null
+          })()}
         <div className="bg-dark-800/50 border border-dark-700 rounded-2xl overflow-hidden">
           {/* 表头 */}
           <div className="grid grid-cols-[1fr_2fr_80px] gap-4 px-5 py-3 bg-dark-800 border-b border-dark-700 text-xs font-semibold text-dark-400 uppercase tracking-wider">
@@ -219,6 +255,7 @@ export default function CheatSheet() {
             )
           })}
         </div>
+      </>
       )}
 
       {/* 统计底栏 */}
