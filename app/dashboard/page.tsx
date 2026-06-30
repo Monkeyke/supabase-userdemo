@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { SEED_COMMANDS } from '@/lib/seed-commands'
 
 interface Note {
   id: string
@@ -48,6 +49,7 @@ function NotesContent() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [seeding, setSeeding] = useState(false)
   const { pinned, togglePin } = usePinned()
 
   const activeTag = searchParams.get('tag')
@@ -103,6 +105,36 @@ function NotesContent() {
     setNotes((prev) => prev.filter((n) => n.id !== id))
   }
 
+  async function handleSeed() {
+    setSeeding(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSeeding(false); return }
+
+    const rows = SEED_COMMANDS.map((cmd) => ({
+      user_id: user.id,
+      title: cmd.title,
+      content: cmd.content,
+      tags: cmd.tags,
+      is_public: false,
+    }))
+
+    // 分批插入 (Supabase 单次限制)
+    const BATCH = 35
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH)
+      const { error } = await supabase.from('notes').insert(batch)
+      if (error) {
+        console.error('初始化命令库失败:', error.message)
+        alert('初始化失败: ' + error.message)
+        setSeeding(false)
+        return
+      }
+    }
+
+    await loadNotes()
+    setSeeding(false)
+  }
+
   async function copyContent(id: string, content: string) {
     try {
       await navigator.clipboard.writeText(content)
@@ -150,6 +182,30 @@ function NotesContent() {
         <div className="text-center text-dark-400 py-20">
           <div className="inline-block w-6 h-6 border-2 border-dark-600 border-t-blue-500 rounded-full animate-spin" />
           <p className="mt-3">加载中...</p>
+        </div>
+      ) : sortedNotes.length === 0 && !activeTag && !searchQuery ? (
+        /* 新用户空态 */
+        <div className="text-center py-16">
+          <p className="text-6xl mb-4">🚀</p>
+          <p className="text-dark-100 text-lg font-semibold mb-2">欢迎使用 Tech Notes</p>
+          <p className="text-dark-400 mb-8 max-w-md mx-auto leading-relaxed">
+            你还没有任何笔记。点击下方按钮一键导入 <span className="text-blue-400 font-medium">70 条</span> 常用命令作为速查库，也可以自己逐条创建。
+          </p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:opacity-60 text-white font-semibold text-sm transition-all shadow-lg shadow-blue-500/20"
+            >
+              {seeding ? '⏳ 初始化中...' : '📦 一键初始化命令库 (70条)'}
+            </button>
+            <Link
+              href="/dashboard/new"
+              className="px-6 py-3 rounded-xl border border-dark-600 hover:border-dark-400 text-dark-300 hover:text-dark-100 font-semibold text-sm transition-all"
+            >
+              ✨ 自己创建
+            </Link>
+          </div>
         </div>
       ) : sortedNotes.length === 0 ? (
         <div className="text-center py-24">

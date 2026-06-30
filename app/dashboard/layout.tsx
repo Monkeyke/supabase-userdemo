@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 const BUILTIN_TAGS = ['ssh', 'docker', 'linux', 'git', 'vim', 'python', '其他']
@@ -141,6 +142,12 @@ function SidebarInner({ children }: { children: React.ReactNode }) {
 
         {/* 底部 */}
         <div className="p-3 border-t border-dark-700/50">
+          <Link
+            href="/dashboard/cheatsheet"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-dark-300 hover:text-dark-100 hover:bg-dark-800/60 transition-all mb-1"
+          >
+            📋 命令速查表
+          </Link>
           <div className="flex items-center gap-2 mb-2 px-2">
             <kbd className="px-1.5 py-0.5 rounded bg-dark-800 border border-dark-700 text-dark-500 text-[10px] font-mono">Ctrl+K</kbd>
             <span className="text-[10px] text-dark-500">全局搜索</span>
